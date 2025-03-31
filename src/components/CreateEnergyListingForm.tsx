@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Zap, Check } from "lucide-react";
+import { Zap } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useBlockchain } from "@/hooks/useBlockchain";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
@@ -21,6 +21,7 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
   const [location, setLocation] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // Use the blockchain hook to get connection status and createListing function
   const { isConnected, createListing } = useBlockchain();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,6 +40,7 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
     }
 
     try {
+      // Check if we should use blockchain and if wallet is connected
       if (useBlockchain && isConnected) {
         // Real blockchain transaction
         const result = await createListing(
