@@ -7,31 +7,85 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, Check } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useBlockchain } from "@/hooks/useBlockchain";
+import ConnectWalletButton from "@/components/ConnectWalletButton";
 
-const CreateEnergyListingForm = () => {
+interface CreateEnergyListingFormProps {
+  useBlockchain?: boolean;
+}
+
+const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingFormProps) => {
   const [amount, setAmount] = useState("");
   const [price, setPrice] = useState("");
   const [source, setSource] = useState("solar");
   const [location, setLocation] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const { isConnected, createListing } = useBlockchain();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
-    // Simulate form submission
-    setTimeout(() => {
+    
+    // Validate inputs
+    if (!amount || !price || !source || !location) {
       toast({
-        title: "Energy listed successfully",
-        description: `${amount} kWh of ${source} energy is now listed on the marketplace.`,
+        title: "Missing fields",
+        description: "Please fill in all required fields",
+        variant: "destructive",
       });
-      // Reset form
-      setAmount("");
-      setPrice("");
-      setSource("solar");
-      setLocation("");
       setIsSubmitting(false);
-    }, 1500);
+      return;
+    }
+
+    try {
+      if (useBlockchain && isConnected) {
+        // Real blockchain transaction
+        const result = await createListing(
+          parseFloat(amount),
+          parseFloat(price),
+          source,
+          location
+        );
+        
+        if (result.success) {
+          toast({
+            title: "Energy listed successfully",
+            description: `${amount} kWh of ${source} energy is now listed on the blockchain.`,
+          });
+          
+          // Reset form
+          setAmount("");
+          setPrice("");
+          setSource("solar");
+          setLocation("");
+        }
+      } else {
+        // Simulate form submission for demo
+        setTimeout(() => {
+          toast({
+            title: "Energy listed successfully",
+            description: `${amount} kWh of ${source} energy is now listed on the marketplace.`,
+          });
+          
+          // Reset form
+          setAmount("");
+          setPrice("");
+          setSource("solar");
+          setLocation("");
+          setIsSubmitting(false);
+        }, 1500);
+      }
+    } catch (error) {
+      console.error("Error creating listing:", error);
+      toast({
+        title: "Error creating listing",
+        description: "Something went wrong while creating your listing.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -39,11 +93,18 @@ const CreateEnergyListingForm = () => {
       <CardHeader>
         <CardTitle className="flex items-center">
           <Zap className="h-5 w-5 text-energy-green mr-2" />
-          List Your Energy
+          List Your Energy {useBlockchain && "on Blockchain"}
         </CardTitle>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
+          {useBlockchain && !isConnected && (
+            <div className="p-4 mb-4 bg-muted rounded-lg">
+              <p className="text-sm mb-3 text-center">Connect your wallet to list energy on the blockchain</p>
+              <ConnectWalletButton className="w-full" />
+            </div>
+          )}
+        
           <div className="space-y-2">
             <Label htmlFor="amount">Energy Amount (kWh)</Label>
             <Input
@@ -105,7 +166,7 @@ const CreateEnergyListingForm = () => {
           <Button 
             type="submit" 
             className="w-full" 
-            disabled={isSubmitting}
+            disabled={isSubmitting || (useBlockchain && !isConnected)}
           >
             {isSubmitting ? (
               <>
@@ -118,7 +179,7 @@ const CreateEnergyListingForm = () => {
             ) : (
               <>
                 <Zap className="mr-2 h-4 w-4" />
-                List Energy
+                {useBlockchain ? "List on Blockchain" : "List Energy"}
               </>
             )}
           </Button>

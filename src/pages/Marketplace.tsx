@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { EnergyListing } from "@/types/energy";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import ConnectWalletButton from "@/components/ConnectWalletButton";
+import { useBlockchain } from "@/hooks/useBlockchain";
 
 const Marketplace = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -21,6 +22,41 @@ const Marketplace = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [purchaseState, setPurchaseState] = useState<"idle" | "confirming" | "processing" | "success" | "error">("idle");
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
+  const [listings, setListings] = useState<EnergyListing[]>([]);
+  const [isUsingBlockchain, setIsUsingBlockchain] = useState(false);
+  
+  const { 
+    isConnected,
+    isLoading: blockchainLoading,
+    purchaseEnergy,
+    getListings
+  } = useBlockchain();
+  
+  useEffect(() => {
+    if (isConnected && isUsingBlockchain) {
+      fetchBlockchainListings();
+    } else {
+      setListings(mockListings);
+    }
+  }, [isConnected, isUsingBlockchain]);
+  
+  const fetchBlockchainListings = async () => {
+    try {
+      const blockchainListings = await getListings();
+      if (blockchainListings.length > 0) {
+        setListings(blockchainListings);
+      } else {
+        setListings(mockListings);
+        toast({
+          title: "No blockchain listings found",
+          description: "Using demo data for now. Create a listing to add real data to the blockchain.",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching blockchain listings:", error);
+      setListings(mockListings);
+    }
+  };
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,29 +72,55 @@ const Marketplace = () => {
     setDialogOpen(true);
   };
   
-  const handleConfirmPurchase = () => {
+  const handleConfirmPurchase = async () => {
+    if (!selectedListing) return;
+    
     setPurchaseState("processing");
     
-    // Simulate blockchain transaction with delay
-    setTimeout(() => {
-      // 90% chance of success for demo purposes
-      const isSuccess = Math.random() < 0.9;
-      
-      if (isSuccess) {
-        setPurchaseState("success");
-        setTimeout(() => {
-          setDialogOpen(false);
-          toast({
-            title: "Purchase Successful",
-            description: `You purchased ${selectedListing?.energyAmount} kWh of energy for ${selectedListing?.price} tokens`,
-          });
-          setPurchaseState("idle");
-        }, 2000);
-      } else {
+    if (isConnected && isUsingBlockchain) {
+      try {
+        const result = await purchaseEnergy(selectedListing.id);
+        
+        if (result.success) {
+          setPurchaseState("success");
+          setTimeout(() => {
+            setDialogOpen(false);
+            toast({
+              title: "Purchase Successful",
+              description: `You purchased ${selectedListing.energyAmount} kWh of energy for ${selectedListing.price} tokens`,
+            });
+            setPurchaseState("idle");
+            fetchBlockchainListings();
+          }, 2000);
+        } else {
+          setPurchaseState("error");
+          setAlertDialogOpen(true);
+        }
+      } catch (error) {
+        console.error("Error purchasing energy:", error);
         setPurchaseState("error");
         setAlertDialogOpen(true);
       }
-    }, 2000);
+    } else {
+      setTimeout(() => {
+        const isSuccess = Math.random() < 0.9;
+        
+        if (isSuccess) {
+          setPurchaseState("success");
+          setTimeout(() => {
+            setDialogOpen(false);
+            toast({
+              title: "Purchase Successful",
+              description: `You purchased ${selectedListing?.energyAmount} kWh of energy for ${selectedListing?.price} tokens`,
+            });
+            setPurchaseState("idle");
+          }, 2000);
+        } else {
+          setPurchaseState("error");
+          setAlertDialogOpen(true);
+        }
+      }, 2000);
+    }
   };
   
   const handleRetryPurchase = () => {
@@ -66,8 +128,25 @@ const Marketplace = () => {
     setPurchaseState("idle");
   };
   
-  // Filter and sort listings
-  const filteredListings = mockListings.filter(listing => {
+  const toggleBlockchainMode = () => {
+    if (!isConnected && !isUsingBlockchain) {
+      toast({
+        title: "Connect wallet first",
+        description: "You need to connect your wallet to use blockchain features",
+      });
+      return;
+    }
+    
+    setIsUsingBlockchain(!isUsingBlockchain);
+    toast({
+      title: isUsingBlockchain ? "Using demo mode" : "Using blockchain mode",
+      description: isUsingBlockchain 
+        ? "Switched to demo data" 
+        : "Connected to real blockchain data",
+    });
+  };
+  
+  const filteredListings = listings.filter(listing => {
     if (sourceFilter && sourceFilter !== "all" && listing.source !== sourceFilter) return false;
     if (searchQuery && !listing.location.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
@@ -88,7 +167,20 @@ const Marketplace = () => {
   return (
     <div className="container py-8 space-y-8">
       <div className="flex flex-col space-y-2">
-        <h1 className="text-3xl font-bold">Energy Marketplace</h1>
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Energy Marketplace</h1>
+          <div className="flex gap-2">
+            <ConnectWalletButton />
+            {isConnected && (
+              <Button 
+                variant={isUsingBlockchain ? "default" : "outline"} 
+                onClick={toggleBlockchainMode}
+              >
+                {isUsingBlockchain ? "Real Blockchain" : "Demo Mode"}
+              </Button>
+            )}
+          </div>
+        </div>
         <p className="text-muted-foreground">
           Buy and sell renewable energy on the blockchain
         </p>
@@ -168,7 +260,7 @@ const Marketplace = () => {
         
         <TabsContent value="sell">
           <div className="max-w-md mx-auto">
-            <CreateEnergyListingForm />
+            <CreateEnergyListingForm useBlockchain={isUsingBlockchain} />
           </div>
         </TabsContent>
       </Tabs>
@@ -187,7 +279,7 @@ const Marketplace = () => {
             <div className="py-6 flex flex-col items-center justify-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
               <p className="text-center">
-                Processing your transaction on the blockchain...
+                {isUsingBlockchain ? "Processing your transaction on the blockchain..." : "Processing your transaction..."}
                 <br />
                 <span className="text-sm text-muted-foreground">Please wait, this may take a moment</span>
               </p>
@@ -198,7 +290,7 @@ const Marketplace = () => {
             <div className="py-6 flex flex-col items-center justify-center">
               <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
               <p className="text-center">
-                Transaction confirmed on the blockchain!
+                {isUsingBlockchain ? "Transaction confirmed on the blockchain!" : "Transaction completed!"}
                 <br />
                 <span className="text-sm text-muted-foreground">Energy tokens will be added to your wallet</span>
               </p>
@@ -228,12 +320,25 @@ const Marketplace = () => {
                     <span className="font-medium font-mono text-xs">{selectedListing.seller.substring(0, 14)}...</span>
                   </div>
                 </div>
+                
+                {isUsingBlockchain && !isConnected && (
+                  <div className="mt-4">
+                    <ConnectWalletButton className="w-full mb-2" />
+                    <p className="text-xs text-muted-foreground text-center">
+                      You need to connect your wallet to make blockchain purchases
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleConfirmPurchase} className="flex items-center gap-2">
+                <Button 
+                  onClick={handleConfirmPurchase} 
+                  className="flex items-center gap-2"
+                  disabled={isUsingBlockchain && !isConnected}
+                >
                   <ShoppingCart className="h-4 w-4" />
                   Confirm Purchase
                 </Button>
@@ -248,7 +353,10 @@ const Marketplace = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Transaction Failed</AlertDialogTitle>
             <AlertDialogDescription>
-              There was an error processing your transaction on the blockchain. This could be due to network congestion or insufficient funds in your wallet.
+              {isUsingBlockchain 
+                ? "There was an error processing your transaction on the blockchain. This could be due to network congestion, contract errors, or insufficient funds in your wallet."
+                : "There was an error processing your transaction. This could be due to network congestion or insufficient funds in your wallet."
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
