@@ -1,7 +1,10 @@
-
-import { ethers } from 'ethers';
-import { BlockchainConfig, EnergyListing, ContractTransaction } from '@/types/energy';
-import { toast } from '@/hooks/use-toast';
+import { ethers } from "ethers";
+import {
+  BlockchainConfig,
+  EnergyListing,
+  ContractTransaction,
+} from "@/types/energy";
+import { toast } from "@/hooks/use-toast";
 
 // ABI definitions for our contracts
 const EnergyTokenABI = [
@@ -20,20 +23,20 @@ const EnergyMarketplaceABI = [
   "function getListingCount() view returns (uint256)",
   "function listings(uint256 id) view returns (uint256 id, address seller, uint256 energyAmount, uint256 price, string memory source, string memory location, uint256 timestamp, bool available)",
   "event ListingCreated(uint256 id, address seller, uint256 energyAmount, uint256 price, string source, string location)",
-  "event ListingPurchased(uint256 id, address buyer, address seller, uint256 energyAmount, uint256 price)"
+  "event ListingPurchased(uint256 id, address buyer, address seller, uint256 energyAmount, uint256 price)",
 ];
 
 // Default blockchain configuration (Ethereum testnet)
 export const defaultBlockchainConfig: BlockchainConfig = {
   networkId: 11155111,
-  networkName: 'Sepolia',
-  currencySymbol: 'ETH',
+  networkName: "Sepolia",
+  currencySymbol: "ETH",
   contractAddresses: {
-    energyToken: '0x0000000000000000000000000000000000000000', // Replace with actual address
-    energyMarketplace: '0x0000000000000000000000000000000000000000', // Replace with actual address
+    energyToken: "0x0000000000000000000000000000000000000000", // Replace with actual address
+    energyMarketplace: "0x0000000000000000000000000000000000000000", // Replace with actual address
   },
-  rpcUrl: 'https://sepolia.infura.io/v3/YOUR_INFURA_KEY', // Replace with your Infura key
-  blockExplorerUrl: 'https://sepolia.etherscan.io',
+  rpcUrl: "https://sepolia.infura.io/v3/YOUR_INFURA_KEY", // Replace with your Infura key
+  blockExplorerUrl: "https://sepolia.etherscan.io",
 };
 
 class BlockchainService {
@@ -55,27 +58,28 @@ class BlockchainService {
       if (!ethereum) {
         toast({
           title: "Wallet not found",
-          description: "Please install MetaMask or another Ethereum wallet to use the blockchain features.",
+          description:
+            "Please install MetaMask or another Ethereum wallet to use the blockchain features.",
         });
         return false;
       }
 
       // Initialize ethers provider
       this.provider = new ethers.providers.Web3Provider(ethereum);
-      
+
       // Request wallet connection
       await this.provider.send("eth_requestAccounts", []);
-      
+
       // Get signer
       this.signer = this.provider.getSigner();
-      
+
       // Initialize contracts
       this.tokenContract = new ethers.Contract(
         this.config.contractAddresses.energyToken,
         EnergyTokenABI,
         this.signer
       );
-      
+
       this.marketplaceContract = new ethers.Contract(
         this.config.contractAddresses.energyMarketplace,
         EnergyMarketplaceABI,
@@ -120,7 +124,10 @@ class BlockchainService {
     }
   }
 
-  async getWalletBalance(): Promise<{ tokenBalance: number; ethBalance: number }> {
+  async getWalletBalance(): Promise<{
+    tokenBalance: number;
+    ethBalance: number;
+  }> {
     try {
       if (!this.signer || !this.tokenContract) {
         throw new Error("Blockchain service not initialized");
@@ -131,8 +138,12 @@ class BlockchainService {
       const ethBalanceBN = await this.provider?.getBalance(address);
 
       // Convert from wei to ETH and from token base units
-      const ethBalance = parseFloat(ethers.utils.formatEther(ethBalanceBN || 0));
-      const tokenBalance = parseFloat(ethers.utils.formatUnits(tokenBalanceBN || 0, 18));
+      const ethBalance = parseFloat(
+        ethers.utils.formatEther(ethBalanceBN || 0)
+      );
+      const tokenBalance = parseFloat(
+        ethers.utils.formatUnits(tokenBalanceBN || 0, 18)
+      );
 
       return { tokenBalance, ethBalance };
     } catch (error) {
@@ -153,20 +164,24 @@ class BlockchainService {
       }
 
       // Convert values to blockchain format (wei)
-      const energyAmountWei = ethers.utils.parseUnits(energyAmount.toString(), 18);
+      const energyAmountWei = ethers.utils.parseUnits(
+        energyAmount.toString(),
+        18
+      );
       const priceWei = ethers.utils.parseUnits(price.toString(), 18);
 
       // Create listing transaction
-      const transaction: ContractTransaction = await this.marketplaceContract.createListing(
-        energyAmountWei,
-        priceWei,
-        source,
-        location
-      );
+      const transaction: ContractTransaction =
+        await this.marketplaceContract.createListing(
+          energyAmountWei,
+          priceWei,
+          source,
+          location
+        );
 
       // Wait for transaction to be mined
       const receipt = await transaction.wait();
-      
+
       if (receipt.status === 1) {
         return { success: true, transactionHash: receipt.transactionHash };
       } else {
@@ -174,9 +189,9 @@ class BlockchainService {
       }
     } catch (error: any) {
       console.error("Failed to create energy listing:", error);
-      return { 
-        success: false, 
-        error: error.message || "Unknown error occurred while creating listing" 
+      return {
+        success: false,
+        error: error.message || "Unknown error occurred while creating listing",
       };
     }
   }
@@ -203,7 +218,8 @@ class BlockchainService {
       await approveTx.wait();
 
       // Purchase listing
-      const purchaseTx: ContractTransaction = await this.marketplaceContract.purchaseListing(listingId);
+      const purchaseTx: ContractTransaction =
+        await this.marketplaceContract.purchaseListing(listingId);
       const receipt = await purchaseTx.wait();
 
       if (receipt.status === 1) {
@@ -213,9 +229,9 @@ class BlockchainService {
       }
     } catch (error: any) {
       console.error("Failed to purchase energy listing:", error);
-      return { 
-        success: false, 
-        error: error.message || "Unknown error occurred while purchasing" 
+      return {
+        success: false,
+        error: error.message || "Unknown error occurred while purchasing",
       };
     }
   }
@@ -227,7 +243,7 @@ class BlockchainService {
       }
 
       const listingData = await this.marketplaceContract.listings(id);
-      
+
       if (!listingData || !listingData.seller) {
         return null;
       }
@@ -235,12 +251,14 @@ class BlockchainService {
       return {
         id: listingData.id.toString(),
         seller: listingData.seller,
-        energyAmount: parseFloat(ethers.utils.formatUnits(listingData.energyAmount, 18)),
+        energyAmount: parseFloat(
+          ethers.utils.formatUnits(listingData.energyAmount, 18)
+        ),
         price: parseFloat(ethers.utils.formatUnits(listingData.price, 18)),
-        source: listingData.source as 'solar' | 'wind' | 'hydro' | 'biomass',
+        source: listingData.source as "solar" | "wind" | "hydro" | "biomass",
         location: listingData.location,
         timestamp: listingData.timestamp.toNumber() * 1000, // Convert blockchain timestamp to JS timestamp
-        available: listingData.available
+        available: listingData.available,
       };
     } catch (error) {
       console.error("Failed to get listing by ID:", error);
