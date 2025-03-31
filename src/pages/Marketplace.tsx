@@ -98,7 +98,7 @@ const Marketplace = () => {
                   <span className="whitespace-nowrap">{sourceFilter || "All Sources"}</span>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Sources</SelectItem>
+                  <SelectItem value="all">All Sources</SelectItem>
                   <SelectItem value="solar">Solar</SelectItem>
                   <SelectItem value="wind">Wind</SelectItem>
                   <SelectItem value="hydro">Hydro</SelectItem>
