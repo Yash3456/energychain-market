@@ -3,6 +3,11 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Wallet, Loader2 } from "lucide-react";
 import { useBlockchain } from "@/hooks/useBlockchain";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from "@/components/ui/tooltip";
 
 interface ConnectWalletButtonProps {
   variant?: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive";
@@ -23,6 +28,10 @@ const ConnectWalletButton: React.FC<ConnectWalletButtonProps> = ({
     }
   };
 
+  const displayAddress = walletAddress 
+    ? `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}`
+    : 'Connected';
+
   return (
     <Button 
       variant={variant}
@@ -39,7 +48,7 @@ const ConnectWalletButton: React.FC<ConnectWalletButtonProps> = ({
       ) : isConnected ? (
         <>
           <Wallet className="mr-2 h-4 w-4" />
-          {walletAddress ? `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}` : 'Connected'}
+          {displayAddress}
         </>
       ) : (
         <>
