@@ -4,20 +4,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Filter, Zap } from "lucide-react";
+import { Search, Filter, Zap, CheckCircle, AlertCircle, ShoppingCart } from "lucide-react";
 import EnergyListingCard from "@/components/EnergyListingCard";
 import CreateEnergyListingForm from "@/components/CreateEnergyListingForm";
 import { mockListings } from "@/data/mockData";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EnergyListing } from "@/types/energy";
 import { toast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const Marketplace = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [sourceFilter, setSourceFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [sortOption, setSortOption] = useState("newest");
   const [selectedListing, setSelectedListing] = useState<EnergyListing | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [purchaseState, setPurchaseState] = useState<"idle" | "confirming" | "processing" | "success" | "error">("idle");
+  const [alertDialogOpen, setAlertDialogOpen] = useState(false);
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,21 +32,43 @@ const Marketplace = () => {
   
   const handleBuy = (listing: EnergyListing) => {
     setSelectedListing(listing);
+    setPurchaseState("idle");
     setDialogOpen(true);
   };
   
   const handleConfirmPurchase = () => {
-    // Simulate purchase
-    toast({
-      title: "Purchase Successful",
-      description: `You purchased ${selectedListing?.energyAmount} kWh of energy for ${selectedListing?.price} tokens`,
-    });
-    setDialogOpen(false);
+    setPurchaseState("processing");
+    
+    // Simulate blockchain transaction with delay
+    setTimeout(() => {
+      // 90% chance of success for demo purposes
+      const isSuccess = Math.random() < 0.9;
+      
+      if (isSuccess) {
+        setPurchaseState("success");
+        setTimeout(() => {
+          setDialogOpen(false);
+          toast({
+            title: "Purchase Successful",
+            description: `You purchased ${selectedListing?.energyAmount} kWh of energy for ${selectedListing?.price} tokens`,
+          });
+          setPurchaseState("idle");
+        }, 2000);
+      } else {
+        setPurchaseState("error");
+        setAlertDialogOpen(true);
+      }
+    }, 2000);
+  };
+  
+  const handleRetryPurchase = () => {
+    setAlertDialogOpen(false);
+    setPurchaseState("idle");
   };
   
   // Filter and sort listings
   const filteredListings = mockListings.filter(listing => {
-    if (sourceFilter && listing.source !== sourceFilter) return false;
+    if (sourceFilter && sourceFilter !== "all" && listing.source !== sourceFilter) return false;
     if (searchQuery && !listing.location.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   }).sort((a, b) => {
@@ -95,7 +120,7 @@ const Marketplace = () => {
               <Select value={sourceFilter} onValueChange={setSourceFilter}>
                 <SelectTrigger className="min-w-[140px] w-fit">
                   <Filter className="h-4 w-4 mr-2" />
-                  <span className="whitespace-nowrap">{sourceFilter || "All Sources"}</span>
+                  <span className="whitespace-nowrap">{sourceFilter === "all" ? "All Sources" : sourceFilter}</span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Sources</SelectItem>
@@ -149,44 +174,89 @@ const Marketplace = () => {
       </Tabs>
       
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirm Purchase</DialogTitle>
+            <DialogTitle>
+              {purchaseState === "success" ? "Purchase Successful" : 
+               purchaseState === "processing" ? "Processing Transaction" : 
+               "Confirm Purchase"}
+            </DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <p>Are you sure you want to purchase this energy?</p>
-            
-            {selectedListing && (
-              <div className="mt-4 p-4 border rounded-lg">
-                <div className="flex justify-between mb-2">
-                  <span className="text-muted-foreground">Energy Source:</span>
-                  <span className="font-medium capitalize">{selectedListing.source}</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-muted-foreground">Amount:</span>
-                  <span className="font-medium">{selectedListing.energyAmount} kWh</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-muted-foreground">Price:</span>
-                  <span className="font-medium">{selectedListing.price} Tokens</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Seller:</span>
-                  <span className="font-medium font-mono text-xs">{selectedListing.seller.substring(0, 14)}...</span>
+          
+          {purchaseState === "processing" && (
+            <div className="py-6 flex flex-col items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+              <p className="text-center">
+                Processing your transaction on the blockchain...
+                <br />
+                <span className="text-sm text-muted-foreground">Please wait, this may take a moment</span>
+              </p>
+            </div>
+          )}
+          
+          {purchaseState === "success" && (
+            <div className="py-6 flex flex-col items-center justify-center">
+              <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
+              <p className="text-center">
+                Transaction confirmed on the blockchain!
+                <br />
+                <span className="text-sm text-muted-foreground">Energy tokens will be added to your wallet</span>
+              </p>
+            </div>
+          )}
+          
+          {purchaseState === "idle" && selectedListing && (
+            <>
+              <div className="py-4">
+                <p>Are you sure you want to purchase this energy?</p>
+                
+                <div className="mt-4 p-4 border rounded-lg">
+                  <div className="flex justify-between mb-2">
+                    <span className="text-muted-foreground">Energy Source:</span>
+                    <span className="font-medium capitalize">{selectedListing.source}</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-muted-foreground">Amount:</span>
+                    <span className="font-medium">{selectedListing.energyAmount} kWh</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-muted-foreground">Price:</span>
+                    <span className="font-medium">{selectedListing.price} Tokens</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Seller:</span>
+                    <span className="font-medium font-mono text-xs">{selectedListing.seller.substring(0, 14)}...</span>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleConfirmPurchase}>
-              Confirm Purchase
-            </Button>
-          </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleConfirmPurchase} className="flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  Confirm Purchase
+                </Button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
+      
+      <AlertDialog open={alertDialogOpen} onOpenChange={setAlertDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Transaction Failed</AlertDialogTitle>
+            <AlertDialogDescription>
+              There was an error processing your transaction on the blockchain. This could be due to network congestion or insufficient funds in your wallet.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDialogOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRetryPurchase}>Try Again</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
