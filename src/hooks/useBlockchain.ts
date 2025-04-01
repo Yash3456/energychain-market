@@ -58,6 +58,16 @@ export function useBlockchain() {
     source: string,
     location: string
   ) => {
+    // First check if we're in blockchain mode and the wallet is connected
+    if (isUsingBlockchain && !isConnected) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to create a blockchain listing",
+        variant: "destructive",
+      });
+      return { success: false, error: "Wallet not connected" };
+    }
+
     const resultAction = await dispatch(
       createListing({
         energyAmount,
@@ -87,6 +97,16 @@ export function useBlockchain() {
   };
 
   const handlePurchaseEnergy = async (listingId: string) => {
+    // First check if we're in blockchain mode and the wallet is connected
+    if (isUsingBlockchain && !isConnected) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to make blockchain purchases",
+        variant: "destructive",
+      });
+      return { success: false, error: "Wallet not connected" };
+    }
+    
     // Get listing details first
     const listing = await blockchainService.getListingById(listingId);
     
@@ -139,7 +159,28 @@ export function useBlockchain() {
     return [];
   };
   
-  const toggleBlockchainMode = () => {
+  const toggleBlockchainMode = async () => {
+    // If we're turning on blockchain mode, make sure wallet is connected first
+    if (!isUsingBlockchain) {
+      const ethereum = (window as any).ethereum;
+      if (!ethereum) {
+        toast({
+          title: "MetaMask not installed",
+          description: "Please install MetaMask to use blockchain features",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (!isConnected) {
+        await handleConnectWallet();
+        if (!isConnected) {
+          // If still not connected after trying, abort
+          return;
+        }
+      }
+    }
+    
     dispatch(setIsUsingBlockchain(!isUsingBlockchain));
     dispatch(fetchListings(!isUsingBlockchain));
     

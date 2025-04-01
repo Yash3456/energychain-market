@@ -25,9 +25,15 @@ export const connectWallet = createAsyncThunk(
   'blockchain/connectWallet',
   async (_, { rejectWithValue }) => {
     try {
+      // First check if MetaMask is installed
+      const ethereum = (window as any).ethereum;
+      if (!ethereum) {
+        return rejectWithValue('MetaMask is not installed. Please install MetaMask to use blockchain features.');
+      }
+      
       const address = await blockchainService.connectWallet();
       if (!address) {
-        return rejectWithValue('Failed to connect wallet');
+        return rejectWithValue('Failed to connect wallet. User may have denied the connection request.');
       }
       
       const { tokenBalance, ethBalance } = await blockchainService.getWalletBalance();
