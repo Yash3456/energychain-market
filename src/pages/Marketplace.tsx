@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -42,7 +41,11 @@ import {
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import { useBlockchain } from "@/hooks/useBlockchain";
 import { useAppSelector, useAppDispatch } from "@/hooks/useAppRedux";
-import { fetchListings, setSelectedListing, updateListingAvailability } from "@/store/listingsSlice";
+import {
+  fetchListings,
+  setSelectedListing,
+  updateListingAvailability,
+} from "@/store/listingsSlice";
 
 const Marketplace = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,17 +58,17 @@ const Marketplace = () => {
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
 
   const dispatch = useAppDispatch();
-  
+
   // Redux state
-  const { isConnected } = useAppSelector(state => state.blockchain);
-  const { listings, selectedListing, isUsingBlockchain } = useAppSelector(state => state.listings);
-  const { isLoading: transactionLoading } = useAppSelector(state => state.transactions);
-  
-  const {
-    purchaseEnergy,
-    getListings,
-    toggleBlockchainMode
-  } = useBlockchain();
+  const { isConnected } = useAppSelector((state) => state.blockchain);
+  const { listings, selectedListing, isUsingBlockchain } = useAppSelector(
+    (state) => state.listings
+  );
+  const { isLoading: transactionLoading } = useAppSelector(
+    (state) => state.transactions
+  );
+
+  const { purchaseEnergy, getListings, toggleBlockchainMode } = useBlockchain();
 
   useEffect(() => {
     dispatch(fetchListings(isUsingBlockchain));
@@ -95,8 +98,13 @@ const Marketplace = () => {
 
       if (result.success) {
         // Mark listing as unavailable
-        dispatch(updateListingAvailability({ id: selectedListing.id, available: false }));
-        
+        dispatch(
+          updateListingAvailability({
+            id: selectedListing.id,
+            available: false,
+          })
+        );
+
         setPurchaseState("success");
         setTimeout(() => {
           setDialogOpen(false);
@@ -176,11 +184,6 @@ const Marketplace = () => {
       </div>
 
       <Tabs defaultValue="browse">
-        <TabsList>
-          <TabsTrigger value="browse">Browse Listings</TabsTrigger>
-          <TabsTrigger value="sell">Sell Energy</TabsTrigger>
-        </TabsList>
-
         <TabsContent value="browse" className="space-y-6">
           <div className="flex flex-col md:flex-row gap-4">
             <form onSubmit={handleSearch} className="flex-1 flex gap-2">
@@ -353,7 +356,9 @@ const Marketplace = () => {
                 <Button
                   onClick={handleConfirmPurchase}
                   className="flex items-center gap-2"
-                  disabled={(isUsingBlockchain && !isConnected) || transactionLoading}
+                  disabled={
+                    (isUsingBlockchain && !isConnected) || transactionLoading
+                  }
                 >
                   <ShoppingCart className="h-4 w-4" />
                   Confirm Purchase

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Zap, User, Bell, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,26 +27,24 @@ const Header = () => {
               </div>
             </SheetContent>
           </Sheet>
-          
+
           <div className="flex items-center gap-2">
             <Zap size={24} className="text-energy-green" />
-            <span className="font-bold text-xl hidden md:inline-flex">EnergyChain</span>
+            <span className="font-bold text-xl hidden md:inline-flex">
+              EnergyChain
+            </span>
           </div>
         </div>
-        
+
         <div className="hidden lg:flex items-center space-x-6">
           <NavigationItems />
         </div>
-        
+
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-0 right-0 h-2 w-2 bg-energy-red rounded-full"></span>
-            <span className="sr-only">Notifications</span>
-          </Button>
-          
           <Avatar className="h-9 w-9">
-            <AvatarFallback className="bg-gradient-energy text-white">EC</AvatarFallback>
+            <AvatarFallback className="bg-gradient-energy text-white">
+              EC
+            </AvatarFallback>
           </Avatar>
         </div>
       </div>

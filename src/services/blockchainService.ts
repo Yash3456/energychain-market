@@ -1,4 +1,3 @@
-
 import { ethers } from "ethers";
 import {
   BlockchainConfig,
@@ -54,7 +53,6 @@ class BlockchainService {
 
   async initialize(): Promise<boolean> {
     try {
-      // Check if ethereum is available (MetaMask or other wallet)
       const ethereum = (window as any).ethereum;
       if (!ethereum) {
         toast({
@@ -104,8 +102,8 @@ class BlockchainService {
         try {
           // Try to switch to the correct network
           await ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0x' + this.config.networkId.toString(16) }],
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: "0x" + this.config.networkId.toString(16) }],
           });
           // Refresh provider after network switch
           this.provider = new ethers.providers.Web3Provider(ethereum);
@@ -200,12 +198,13 @@ class BlockchainService {
       // Check if user has sufficient ETH balance for gas
       const address = await this.signer?.getAddress();
       if (!address) throw new Error("Wallet not connected");
-      
+
       const ethBalance = await this.provider?.getBalance(address);
       if (ethBalance && ethBalance.lt(ethers.utils.parseEther("0.01"))) {
-        return { 
-          success: false, 
-          error: "Insufficient ETH for gas fees. Please add some ETH to your wallet." 
+        return {
+          success: false,
+          error:
+            "Insufficient ETH for gas fees. Please add some ETH to your wallet.",
         };
       }
 
@@ -229,12 +228,13 @@ class BlockchainService {
       }
     } catch (error: any) {
       console.error("Failed to create energy listing:", error);
-      
+
       // Handle specific error messages
       if (error.message.includes("insufficient funds")) {
         return {
           success: false,
-          error: "Insufficient funds. Please add more ETH to your wallet for gas fees.",
+          error:
+            "Insufficient funds. Please add more ETH to your wallet for gas fees.",
         };
       } else if (error.message.includes("user denied")) {
         return {
@@ -242,7 +242,7 @@ class BlockchainService {
           error: "Transaction was rejected by the user.",
         };
       }
-      
+
       return {
         success: false,
         error: error.message || "Unknown error occurred while creating listing",
@@ -264,12 +264,13 @@ class BlockchainService {
       // First check if user has sufficient ETH for gas
       const address = await this.signer?.getAddress();
       if (!address) throw new Error("Wallet not connected");
-      
+
       const ethBalance = await this.provider?.getBalance(address);
       if (ethBalance && ethBalance.lt(ethers.utils.parseEther("0.01"))) {
-        return { 
-          success: false, 
-          error: "Insufficient ETH for gas fees. Please add some ETH to your wallet." 
+        return {
+          success: false,
+          error:
+            "Insufficient ETH for gas fees. Please add some ETH to your wallet.",
         };
       }
 
@@ -278,10 +279,13 @@ class BlockchainService {
       if (!listing) {
         throw new Error("Listing not found");
       }
-      
+
       const tokenBalanceBN = await this.tokenContract.balanceOf(address);
-      const listingPriceBN = ethers.utils.parseUnits(listing.price.toString(), 18);
-      
+      const listingPriceBN = ethers.utils.parseUnits(
+        listing.price.toString(),
+        18
+      );
+
       if (tokenBalanceBN.lt(listingPriceBN)) {
         return {
           success: false,
@@ -299,21 +303,21 @@ class BlockchainService {
         await approveTx.wait();
       } catch (approveError: any) {
         console.error("Failed to approve tokens:", approveError);
-        
+
         if (approveError.message.includes("user denied")) {
           return {
             success: false,
             error: "Token approval was rejected by the user.",
           };
         }
-        
+
         throw approveError;
       }
 
       // Purchase listing
       const purchaseTx: ContractTransaction =
         await this.marketplaceContract.purchaseListing(listingId, {
-          gasLimit: 500000
+          gasLimit: 500000,
         });
       const receipt = await purchaseTx.wait();
 
@@ -324,12 +328,13 @@ class BlockchainService {
       }
     } catch (error: any) {
       console.error("Failed to purchase energy listing:", error);
-      
+
       // Handle common error messages
       if (error.message.includes("insufficient funds")) {
         return {
           success: false,
-          error: "Insufficient funds. Please add more ETH to your wallet for gas fees.",
+          error:
+            "Insufficient funds. Please add more ETH to your wallet for gas fees.",
         };
       } else if (error.message.includes("user denied")) {
         return {
@@ -337,7 +342,7 @@ class BlockchainService {
           error: "Transaction was rejected by the user.",
         };
       }
-      
+
       return {
         success: false,
         error: error.message || "Unknown error occurred while purchasing",

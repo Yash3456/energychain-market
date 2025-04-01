@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,20 +13,25 @@ import { UserWallet } from "@/types/energy";
 
 const Wallet = () => {
   // Get wallet data from Redux
-  const { walletAddress, tokenBalance, ethBalance, isConnected } = useAppSelector(state => state.blockchain);
-  const transactions = useAppSelector(state => state.transactions.transactions);
-  
+  const { walletAddress, tokenBalance, ethBalance, isConnected } =
+    useAppSelector((state) => state.blockchain);
+  const transactions = useAppSelector(
+    (state) => state.transactions.transactions
+  );
+
   // Create a wallet object using Redux data or fallback to mock data
-  const wallet: UserWallet = isConnected ? {
-    address: walletAddress || '0x0000000000000000000000000000000000000000',
-    balance: tokenBalance,
-    energyBalance: 0 // Would be set from blockchain data in a real app
-  } : {
-    address: '0x1234567890abcdef1234567890abcdef12345678',
-    balance: 1000,
-    energyBalance: 50
-  };
-  
+  const wallet: UserWallet = isConnected
+    ? {
+        address: walletAddress || "0x0000000000000000000000000000000000000000",
+        balance: tokenBalance,
+        energyBalance: 0, // Would be set from blockchain data in a real app
+      }
+    : {
+        address: "0x1234567890abcdef1234567890abcdef12345678",
+        balance: 1000,
+        energyBalance: 50,
+      };
+
   const handleSendSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     toast({
@@ -35,7 +39,7 @@ const Wallet = () => {
       description: "Your tokens are being transferred",
     });
   };
-  
+
   return (
     <div className="container py-8 space-y-8">
       <div className="flex flex-col space-y-2">
@@ -44,12 +48,12 @@ const Wallet = () => {
           Manage your tokens and energy balance
         </p>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <WalletCard wallet={wallet} />
         </div>
-        
+
         <div className="lg:col-span-2">
           <Tabs defaultValue="transactions">
             <TabsList>
@@ -57,18 +61,21 @@ const Wallet = () => {
               <TabsTrigger value="send">Send Tokens</TabsTrigger>
               <TabsTrigger value="receive">Receive Tokens</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="transactions">
               <Card>
                 <CardHeader>
                   <CardTitle>Transaction History</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <TransactionsTable transactions={transactions} userAddress={wallet.address} />
+                  <TransactionsTable
+                    transactions={transactions}
+                    userAddress={wallet.address}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="send">
               <Card>
                 <CardHeader>
@@ -81,13 +88,9 @@ const Wallet = () => {
                   <form onSubmit={handleSendSubmit} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="recipient">Recipient Address</Label>
-                      <Input
-                        id="recipient"
-                        placeholder="0x..."
-                        required
-                      />
+                      <Input id="recipient" placeholder="0x..." required />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="amount">Amount</Label>
                       <div className="flex">
@@ -105,7 +108,7 @@ const Wallet = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="notes">Notes (Optional)</Label>
                       <Input
@@ -113,7 +116,7 @@ const Wallet = () => {
                         placeholder="What's this payment for?"
                       />
                     </div>
-                    
+
                     <Button type="submit" className="w-full">
                       Send Tokens
                     </Button>
@@ -121,7 +124,7 @@ const Wallet = () => {
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="receive">
               <Card>
                 <CardHeader>
@@ -137,10 +140,10 @@ const Wallet = () => {
                       <code className="text-sm font-mono break-all">
                         {wallet.address}
                       </code>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="ml-2 h-6 w-6 p-0 shrink-0" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-2 h-6 w-6 p-0 shrink-0"
                         onClick={() => {
                           navigator.clipboard.writeText(wallet.address);
                           toast({
@@ -149,30 +152,39 @@ const Wallet = () => {
                           });
                         }}
                       >
-                        <svg 
-                          xmlns="http://www.w3.org/2000/svg" 
-                          width="14" 
-                          height="14" 
-                          viewBox="0 0 24 24" 
-                          fill="none" 
-                          stroke="currentColor" 
-                          strokeWidth="2" 
-                          strokeLinecap="round" 
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
                           strokeLinejoin="round"
                         >
-                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                          <rect
+                            x="9"
+                            y="9"
+                            width="13"
+                            height="13"
+                            rx="2"
+                            ry="2"
+                          />
                           <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
                         </svg>
                         <span className="sr-only">Copy address</span>
                       </Button>
                     </div>
                   </div>
-                  
+
                   <div className="flex flex-col items-center p-6 border rounded-lg">
                     <div className="mx-auto h-48 w-48 bg-white p-2 rounded-lg mb-4">
                       {/* This would be a QR code in a real app */}
                       <div className="h-full w-full border-2 border-dashed border-energy-blue flex items-center justify-center">
-                        <span className="text-sm text-muted-foreground">QR Code</span>
+                        <span className="text-sm text-muted-foreground">
+                          QR Code
+                        </span>
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground text-center">
