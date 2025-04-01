@@ -31,14 +31,31 @@ export const connectWallet = createAsyncThunk(
         return rejectWithValue('MetaMask is not installed. Please install MetaMask to use blockchain features.');
       }
       
+      // If MetaMask exists, attempt to connect
       const address = await blockchainService.connectWallet();
       if (!address) {
         return rejectWithValue('Failed to connect wallet. User may have denied the connection request.');
       }
       
+      // Get balances after successful connection
       const { tokenBalance, ethBalance } = await blockchainService.getWalletBalance();
+      
+      // Check if ETH balance is too low for gas
+      if (ethBalance < 0.01) {
+        const warning = 'Warning: Your ETH balance is low. You may not be able to perform transactions.';
+        console.warn(warning);
+        // Return success but with a warning
+        return { 
+          address, 
+          tokenBalance, 
+          ethBalance,
+          warning
+        };
+      }
+      
       return { address, tokenBalance, ethBalance };
     } catch (error: any) {
+      console.error("Wallet connection error:", error);
       return rejectWithValue(error.message || 'Failed to connect wallet');
     }
   }
@@ -69,6 +86,11 @@ export const blockchainSlice = createSlice({
         state.walletAddress = action.payload.address;
         state.tokenBalance = action.payload.tokenBalance;
         state.ethBalance = action.payload.ethBalance;
+        
+        // If there's a warning, we still set it as error for UI display
+        if (action.payload.warning) {
+          state.error = action.payload.warning;
+        }
       })
       .addCase(connectWallet.rejected, (state, action) => {
         state.isLoading = false;

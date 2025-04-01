@@ -50,7 +50,7 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
           location
         );
         
-        if (result.success) {
+        if (result && result.success) {
           toast({
             title: "Energy listed successfully",
             description: `${amount} kWh of ${source} energy is now listed on the blockchain.`,
@@ -71,7 +71,7 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
           location
         );
         
-        if (result.success) {
+        if (result && result.success) {
           toast({
             title: "Energy listed successfully",
             description: `${amount} kWh of ${source} energy is now listed on the marketplace.`,
