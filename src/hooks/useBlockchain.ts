@@ -1,149 +1,168 @@
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
+import { useAppDispatch, useAppSelector } from './useAppRedux';
+import { connectWallet, updateBalances } from '@/store/blockchainSlice';
+import { fetchListings, createListing, setIsUsingBlockchain } from '@/store/listingsSlice';
+import { purchaseEnergy } from '@/store/transactionsSlice';
 import blockchainService from '@/services/blockchainService';
-import { EnergyListing } from '@/types/energy';
 
 export function useBlockchain() {
-  const [isConnected, setIsConnected] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [tokenBalance, setTokenBalance] = useState(0);
-  const [ethBalance, setEthBalance] = useState(0);
+  const dispatch = useAppDispatch();
   const { toast } = useToast();
+  
+  const { 
+    isConnected, 
+    isLoading: blockchainLoading, 
+    walletAddress,
+    tokenBalance,
+    ethBalance,
+    error 
+  } = useAppSelector(state => state.blockchain);
+  
+  const { isUsingBlockchain } = useAppSelector(state => state.listings);
 
   useEffect(() => {
     // Check if the user has previously connected their wallet
     const checkConnection = async () => {
       const ethereum = (window as any).ethereum;
       if (ethereum && ethereum.selectedAddress) {
-        await connectWallet();
+        handleConnectWallet();
       }
     };
 
     checkConnection();
   }, []);
 
-  const connectWallet = async () => {
-    setIsLoading(true);
-    try {
-      const address = await blockchainService.connectWallet();
-      if (address) {
-        setWalletAddress(address);
-        setIsConnected(true);
-        
-        // Get balances
-        const { tokenBalance, ethBalance } = await blockchainService.getWalletBalance();
-        setTokenBalance(tokenBalance);
-        setEthBalance(ethBalance);
-        
-        toast({
-          title: "Wallet connected",
-          description: `Connected to ${address.substring(0, 6)}...${address.substring(address.length - 4)}`,
-        });
-      }
-    } catch (error) {
-      console.error("Error connecting wallet:", error);
+  const handleConnectWallet = async () => {
+    const resultAction = await dispatch(connectWallet());
+    
+    if (connectWallet.fulfilled.match(resultAction)) {
+      const address = resultAction.payload.address;
+      toast({
+        title: "Wallet connected",
+        description: `Connected to ${address.substring(0, 6)}...${address.substring(address.length - 4)}`,
+      });
+    } else if (connectWallet.rejected.match(resultAction) && resultAction.payload) {
       toast({
         title: "Connection failed",
-        description: "Could not connect to your blockchain wallet.",
+        description: resultAction.payload as string,
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const createListing = async (
+  const handleCreateListing = async (
     energyAmount: number,
     price: number,
     source: string,
     location: string
   ) => {
-    setIsLoading(true);
-    try {
-      const result = await blockchainService.createEnergyListing(
+    const resultAction = await dispatch(
+      createListing({
         energyAmount,
         price,
         source,
-        location
-      );
+        location,
+        useBlockchain: isUsingBlockchain
+      })
+    );
 
-      if (result.success) {
-        toast({
-          title: "Listing created",
-          description: "Your energy listing has been created on the blockchain.",
-        });
-        return result;
-      } else {
-        toast({
-          title: "Failed to create listing",
-          description: result.error || "Unknown error occurred",
-          variant: "destructive",
-        });
-        return result;
-      }
-    } catch (error: any) {
+    if (createListing.fulfilled.match(resultAction)) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to create listing",
+        title: "Listing created",
+        description: "Your energy listing has been created successfully.",
+      });
+      return { success: true };
+    } else if (createListing.rejected.match(resultAction) && resultAction.payload) {
+      toast({
+        title: "Failed to create listing",
+        description: resultAction.payload as string,
         variant: "destructive",
       });
-      return { success: false, error: error.message };
-    } finally {
-      setIsLoading(false);
+      return { success: false, error: resultAction.payload as string };
     }
+    
+    return { success: false, error: "Unknown error" };
   };
 
-  const purchaseEnergy = async (listingId: string) => {
-    setIsLoading(true);
-    try {
-      const result = await blockchainService.purchaseEnergyListing(listingId);
-
-      if (result.success) {
-        toast({
-          title: "Purchase successful",
-          description: "Your energy purchase has been confirmed on the blockchain.",
-        });
-        return result;
-      } else {
-        toast({
-          title: "Purchase failed",
-          description: result.error || "Unknown error occurred",
-          variant: "destructive",
-        });
-        return result;
-      }
-    } catch (error: any) {
+  const handlePurchaseEnergy = async (listingId: string) => {
+    // Get listing details first
+    const listing = await blockchainService.getListingById(listingId);
+    
+    if (!listing) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to purchase energy",
+        title: "Listing not found",
+        description: "The energy listing you're trying to purchase doesn't exist.",
         variant: "destructive",
       });
-      return { success: false, error: error.message };
-    } finally {
-      setIsLoading(false);
+      return { success: false, error: "Listing not found" };
     }
+    
+    const resultAction = await dispatch(
+      purchaseEnergy({
+        listing,
+        useBlockchain: isUsingBlockchain
+      })
+    );
+
+    if (purchaseEnergy.fulfilled.match(resultAction)) {
+      toast({
+        title: "Purchase successful",
+        description: `You purchased ${listing.energyAmount} kWh of energy for ${listing.price} tokens`,
+      });
+      
+      // Update balances
+      const { tokenBalance, ethBalance } = await blockchainService.getWalletBalance();
+      dispatch(updateBalances({ tokenBalance, ethBalance }));
+      
+      return { success: true };
+    } else if (purchaseEnergy.rejected.match(resultAction) && resultAction.payload) {
+      toast({
+        title: "Purchase failed",
+        description: resultAction.payload as string,
+        variant: "destructive",
+      });
+      return { success: false, error: resultAction.payload as string };
+    }
+    
+    return { success: false, error: "Unknown error" };
   };
 
-  const getListings = async (): Promise<EnergyListing[]> => {
-    try {
-      return await blockchainService.getAllListings();
-    } catch (error) {
-      console.error("Error getting listings:", error);
-      return [];
+  const handleGetListings = async () => {
+    const resultAction = await dispatch(fetchListings(isUsingBlockchain));
+    
+    if (fetchListings.fulfilled.match(resultAction)) {
+      return resultAction.payload;
     }
+    
+    return [];
+  };
+  
+  const toggleBlockchainMode = () => {
+    dispatch(setIsUsingBlockchain(!isUsingBlockchain));
+    dispatch(fetchListings(!isUsingBlockchain));
+    
+    toast({
+      title: !isUsingBlockchain ? "Using blockchain mode" : "Using demo mode",
+      description: !isUsingBlockchain 
+        ? "Connected to real blockchain data" 
+        : "Switched to demo data",
+    });
   };
 
   return {
     isConnected,
-    isLoading,
+    isLoading: blockchainLoading,
     walletAddress,
     tokenBalance,
     ethBalance,
-    connectWallet,
-    createListing,
-    purchaseEnergy,
-    getListings,
+    isUsingBlockchain,
+    error,
+    connectWallet: handleConnectWallet,
+    createListing: handleCreateListing,
+    purchaseEnergy: handlePurchaseEnergy,
+    getListings: handleGetListings,
+    toggleBlockchainMode,
   };
 }

@@ -4,15 +4,29 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import WalletCard from "@/components/WalletCard";
 import TransactionsTable from "@/components/TransactionsTable";
-import { mockWallets, mockTransactions } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useAppSelector } from "@/hooks/useAppRedux";
+import { UserWallet } from "@/types/energy";
 
 const Wallet = () => {
-  const wallet = mockWallets[0];
+  // Get wallet data from Redux
+  const { walletAddress, tokenBalance, ethBalance, isConnected } = useAppSelector(state => state.blockchain);
+  const transactions = useAppSelector(state => state.transactions.transactions);
+  
+  // Create a wallet object using Redux data or fallback to mock data
+  const wallet: UserWallet = isConnected ? {
+    address: walletAddress || '0x0000000000000000000000000000000000000000',
+    balance: tokenBalance,
+    energyBalance: 0 // Would be set from blockchain data in a real app
+  } : {
+    address: '0x1234567890abcdef1234567890abcdef12345678',
+    balance: 1000,
+    energyBalance: 50
+  };
   
   const handleSendSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +64,7 @@ const Wallet = () => {
                   <CardTitle>Transaction History</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <TransactionsTable transactions={mockTransactions} userAddress={wallet.address} />
+                  <TransactionsTable transactions={transactions} userAddress={wallet.address} />
                 </CardContent>
               </Card>
             </TabsContent>

@@ -9,6 +9,7 @@ import { Zap } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useBlockchain } from "@/hooks/useBlockchain";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
+import { useAppSelector } from "@/hooks/useAppRedux";
 
 interface CreateEnergyListingFormProps {
   useBlockchain?: boolean;
@@ -19,14 +20,14 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
   const [price, setPrice] = useState("");
   const [source, setSource] = useState("solar");
   const [location, setLocation] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Use the blockchain hook to get connection status and createListing function
-  const { isConnected, createListing } = useBlockchain();
+  // Use Redux state and actions
+  const { isConnected } = useAppSelector(state => state.blockchain);
+  const { isLoading } = useAppSelector(state => state.listings);
+  const { createListing } = useBlockchain();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     
     // Validate inputs
     if (!amount || !price || !source || !location) {
@@ -35,7 +36,6 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
         description: "Please fill in all required fields",
         variant: "destructive",
       });
-      setIsSubmitting(false);
       return;
     }
 
@@ -64,7 +64,14 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
         }
       } else {
         // Simulate form submission for demo
-        setTimeout(() => {
+        const result = await createListing(
+          parseFloat(amount),
+          parseFloat(price),
+          source,
+          location
+        );
+        
+        if (result.success) {
           toast({
             title: "Energy listed successfully",
             description: `${amount} kWh of ${source} energy is now listed on the marketplace.`,
@@ -75,8 +82,7 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
           setPrice("");
           setSource("solar");
           setLocation("");
-          setIsSubmitting(false);
-        }, 1500);
+        }
       }
     } catch (error) {
       console.error("Error creating listing:", error);
@@ -85,8 +91,6 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
         description: "Something went wrong while creating your listing.",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -168,9 +172,9 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
           <Button 
             type="submit" 
             className="w-full" 
-            disabled={isSubmitting || (useBlockchain && !isConnected)}
+            disabled={isLoading || (useBlockchain && !isConnected)}
           >
-            {isSubmitting ? (
+            {isLoading ? (
               <>
                 <span className="mr-2">Processing</span>
                 <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

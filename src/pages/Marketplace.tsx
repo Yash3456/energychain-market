@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,6 @@ import {
 } from "lucide-react";
 import EnergyListingCard from "@/components/EnergyListingCard";
 import CreateEnergyListingForm from "@/components/CreateEnergyListingForm";
-import { mockListings } from "@/data/mockData";
 import {
   Dialog,
   DialogContent,
@@ -41,55 +41,35 @@ import {
 } from "@/components/ui/alert-dialog";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import { useBlockchain } from "@/hooks/useBlockchain";
+import { useAppSelector, useAppDispatch } from "@/hooks/useAppRedux";
+import { fetchListings, setSelectedListing, updateListingAvailability } from "@/store/listingsSlice";
 
 const Marketplace = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [sortOption, setSortOption] = useState("newest");
-  const [selectedListing, setSelectedListing] = useState<EnergyListing | null>(
-    null
-  );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [purchaseState, setPurchaseState] = useState<
     "idle" | "confirming" | "processing" | "success" | "error"
   >("idle");
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
-  const [listings, setListings] = useState<EnergyListing[]>([]);
-  const [isUsingBlockchain, setIsUsingBlockchain] = useState(false);
 
+  const dispatch = useAppDispatch();
+  
+  // Redux state
+  const { isConnected } = useAppSelector(state => state.blockchain);
+  const { listings, selectedListing, isUsingBlockchain } = useAppSelector(state => state.listings);
+  const { isLoading: transactionLoading } = useAppSelector(state => state.transactions);
+  
   const {
-    isConnected,
-    isLoading: blockchainLoading,
     purchaseEnergy,
     getListings,
+    toggleBlockchainMode
   } = useBlockchain();
 
   useEffect(() => {
-    if (isConnected && isUsingBlockchain) {
-      fetchBlockchainListings();
-    } else {
-      setListings(mockListings);
-    }
-  }, [isConnected, isUsingBlockchain]);
-
-  const fetchBlockchainListings = async () => {
-    try {
-      const blockchainListings = await getListings();
-      if (blockchainListings.length > 0) {
-        setListings(blockchainListings);
-      } else {
-        setListings(mockListings);
-        toast({
-          title: "No blockchain listings found",
-          description:
-            "Using demo data for now. Create a listing to add real data to the blockchain.",
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching blockchain listings:", error);
-      setListings(mockListings);
-    }
-  };
+    dispatch(fetchListings(isUsingBlockchain));
+  }, [dispatch, isUsingBlockchain]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,7 +80,7 @@ const Marketplace = () => {
   };
 
   const handleBuy = (listing: EnergyListing) => {
-    setSelectedListing(listing);
+    dispatch(setSelectedListing(listing));
     setPurchaseState("idle");
     setDialogOpen(true);
   };
@@ -110,74 +90,38 @@ const Marketplace = () => {
 
     setPurchaseState("processing");
 
-    if (isConnected && isUsingBlockchain) {
-      try {
-        const result = await purchaseEnergy(selectedListing.id);
+    try {
+      const result = await purchaseEnergy(selectedListing.id);
 
-        if (result.success) {
-          setPurchaseState("success");
-          setTimeout(() => {
-            setDialogOpen(false);
-            toast({
-              title: "Purchase Successful",
-              description: `You purchased ${selectedListing.energyAmount} kWh of energy for ${selectedListing.price} tokens`,
-            });
-            setPurchaseState("idle");
-            fetchBlockchainListings();
-          }, 2000);
-        } else {
-          setPurchaseState("error");
-          setAlertDialogOpen(true);
-        }
-      } catch (error) {
-        console.error("Error purchasing energy:", error);
+      if (result.success) {
+        // Mark listing as unavailable
+        dispatch(updateListingAvailability({ id: selectedListing.id, available: false }));
+        
+        setPurchaseState("success");
+        setTimeout(() => {
+          setDialogOpen(false);
+          toast({
+            title: "Purchase Successful",
+            description: `You purchased ${selectedListing.energyAmount} kWh of energy for ${selectedListing.price} tokens`,
+          });
+          setPurchaseState("idle");
+          // Refresh listings
+          dispatch(fetchListings(isUsingBlockchain));
+        }, 2000);
+      } else {
         setPurchaseState("error");
         setAlertDialogOpen(true);
       }
-    } else {
-      setTimeout(() => {
-        const isSuccess = Math.random() < 0.9;
-
-        if (isSuccess) {
-          setPurchaseState("success");
-          setTimeout(() => {
-            setDialogOpen(false);
-            toast({
-              title: "Purchase Successful",
-              description: `You purchased ${selectedListing?.energyAmount} kWh of energy for ${selectedListing?.price} tokens`,
-            });
-            setPurchaseState("idle");
-          }, 2000);
-        } else {
-          setPurchaseState("error");
-          setAlertDialogOpen(true);
-        }
-      }, 2000);
+    } catch (error) {
+      console.error("Error purchasing energy:", error);
+      setPurchaseState("error");
+      setAlertDialogOpen(true);
     }
   };
 
   const handleRetryPurchase = () => {
     setAlertDialogOpen(false);
     setPurchaseState("idle");
-  };
-
-  const toggleBlockchainMode = () => {
-    if (!isConnected && !isUsingBlockchain) {
-      toast({
-        title: "Connect wallet first",
-        description:
-          "You need to connect your wallet to use blockchain features",
-      });
-      return;
-    }
-
-    setIsUsingBlockchain(!isUsingBlockchain);
-    toast({
-      title: isUsingBlockchain ? "Using demo mode" : "Using blockchain mode",
-      description: isUsingBlockchain
-        ? "Switched to demo data"
-        : "Connected to real blockchain data",
-    });
   };
 
   const filteredListings = listings
@@ -193,7 +137,7 @@ const Marketplace = () => {
         !listing.location.toLowerCase().includes(searchQuery.toLowerCase())
       )
         return false;
-      return true;
+      return listing.available; // Only show available listings
     })
     .sort((a, b) => {
       switch (sortOption) {
@@ -409,7 +353,7 @@ const Marketplace = () => {
                 <Button
                   onClick={handleConfirmPurchase}
                   className="flex items-center gap-2"
-                  disabled={isUsingBlockchain && !isConnected}
+                  disabled={(isUsingBlockchain && !isConnected) || transactionLoading}
                 >
                   <ShoppingCart className="h-4 w-4" />
                   Confirm Purchase
