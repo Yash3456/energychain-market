@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -41,54 +41,59 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
 
     try {
       // Check if we should use blockchain and if wallet is connected
-      if (useBlockchain && isConnected) {
-        // Real blockchain transaction
-        const result = await createListing(
-          parseFloat(amount),
-          parseFloat(price),
-          source,
-          location
-        );
-        
-        if (result && result.success) {
+      if (useBlockchain && !isConnected) {
+        toast({
+          title: "Wallet not connected",
+          description: "Please connect your wallet to use blockchain features",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if MetaMask is installed when using blockchain
+      if (useBlockchain) {
+        const ethereum = (window as any).ethereum;
+        if (!ethereum) {
           toast({
-            title: "Energy listed successfully",
-            description: `${amount} kWh of ${source} energy is now listed on the blockchain.`,
+            title: "MetaMask not installed",
+            description: "Please install MetaMask to use blockchain features",
+            variant: "destructive",
           });
-          
-          // Reset form
-          setAmount("");
-          setPrice("");
-          setSource("solar");
-          setLocation("");
-        }
-      } else {
-        // Simulate form submission for demo
-        const result = await createListing(
-          parseFloat(amount),
-          parseFloat(price),
-          source,
-          location
-        );
-        
-        if (result && result.success) {
-          toast({
-            title: "Energy listed successfully",
-            description: `${amount} kWh of ${source} energy is now listed on the marketplace.`,
-          });
-          
-          // Reset form
-          setAmount("");
-          setPrice("");
-          setSource("solar");
-          setLocation("");
+          return;
         }
       }
-    } catch (error) {
+      
+      // Now proceed with creating the listing
+      const result = await createListing(
+        parseFloat(amount),
+        parseFloat(price),
+        source,
+        location
+      );
+      
+      if (result && result.success) {
+        toast({
+          title: "Energy listed successfully",
+          description: `${amount} kWh of ${source} energy is now listed on the ${useBlockchain ? 'blockchain' : 'marketplace'}.`,
+        });
+        
+        // Reset form
+        setAmount("");
+        setPrice("");
+        setSource("solar");
+        setLocation("");
+      } else if (result && result.error) {
+        toast({
+          title: "Error creating listing",
+          description: result.error,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
       console.error("Error creating listing:", error);
       toast({
         title: "Error creating listing",
-        description: "Something went wrong while creating your listing.",
+        description: error.message || "Something went wrong while creating your listing.",
         variant: "destructive",
       });
     }

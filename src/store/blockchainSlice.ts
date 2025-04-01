@@ -10,6 +10,7 @@ interface BlockchainState {
   tokenBalance: number;
   ethBalance: number;
   error: string | null;
+  isMetaMaskInstalled: boolean;
 }
 
 const initialState: BlockchainState = {
@@ -19,6 +20,7 @@ const initialState: BlockchainState = {
   tokenBalance: 0,
   ethBalance: 0,
   error: null,
+  isMetaMaskInstalled: false,
 };
 
 export const connectWallet = createAsyncThunk(
@@ -41,22 +43,38 @@ export const connectWallet = createAsyncThunk(
       const { tokenBalance, ethBalance } = await blockchainService.getWalletBalance();
       
       // Check if ETH balance is too low for gas
-      if (ethBalance < 0.01) {
-        const warning = 'Warning: Your ETH balance is low. You may not be able to perform transactions.';
-        console.warn(warning);
-        // Return success but with a warning
-        return { 
+      if (ethBalance < 0.001) {
+        return {
           address, 
           tokenBalance, 
           ethBalance,
-          warning
+          warning: 'Your ETH balance is very low. You may not be able to perform transactions. Please add some ETH to your wallet.',
+          isMetaMaskInstalled: true
         };
       }
       
-      return { address, tokenBalance, ethBalance };
+      return { 
+        address, 
+        tokenBalance, 
+        ethBalance,
+        isMetaMaskInstalled: true
+      };
     } catch (error: any) {
       console.error("Wallet connection error:", error);
       return rejectWithValue(error.message || 'Failed to connect wallet');
+    }
+  }
+);
+
+export const checkMetaMaskInstalled = createAsyncThunk(
+  'blockchain/checkMetaMaskInstalled',
+  async (_, { rejectWithValue }) => {
+    try {
+      const ethereum = (window as any).ethereum;
+      return !!ethereum;
+    } catch (error) {
+      console.error("Error checking MetaMask:", error);
+      return false;
     }
   }
 );
@@ -73,6 +91,9 @@ export const blockchainSlice = createSlice({
       state.ethBalance = action.payload.ethBalance;
     },
     resetBlockchain: () => initialState,
+    clearBlockchainError: (state) => {
+      state.error = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -86,19 +107,25 @@ export const blockchainSlice = createSlice({
         state.walletAddress = action.payload.address;
         state.tokenBalance = action.payload.tokenBalance;
         state.ethBalance = action.payload.ethBalance;
+        state.isMetaMaskInstalled = action.payload.isMetaMaskInstalled;
         
         // If there's a warning, we still set it as error for UI display
         if (action.payload.warning) {
           state.error = action.payload.warning;
+        } else {
+          state.error = null;
         }
       })
       .addCase(connectWallet.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
+      })
+      .addCase(checkMetaMaskInstalled.fulfilled, (state, action) => {
+        state.isMetaMaskInstalled = action.payload;
       });
   },
 });
 
-export const { setWalletConnection, updateBalances, resetBlockchain } = blockchainSlice.actions;
+export const { setWalletConnection, updateBalances, resetBlockchain, clearBlockchainError } = blockchainSlice.actions;
 
 export default blockchainSlice.reducer;

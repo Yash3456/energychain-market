@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useAppDispatch, useAppSelector } from './useAppRedux';
-import { connectWallet, updateBalances } from '@/store/blockchainSlice';
+import { connectWallet, updateBalances, checkMetaMaskInstalled, clearBlockchainError } from '@/store/blockchainSlice';
 import { fetchListings, createListing, setIsUsingBlockchain } from '@/store/listingsSlice';
 import { purchaseEnergy } from '@/store/transactionsSlice';
 import blockchainService from '@/services/blockchainService';
@@ -17,12 +17,16 @@ export function useBlockchain() {
     walletAddress,
     tokenBalance,
     ethBalance,
-    error 
+    error: blockchainError,
+    isMetaMaskInstalled
   } = useAppSelector(state => state.blockchain);
   
   const { isUsingBlockchain } = useAppSelector(state => state.listings);
 
   useEffect(() => {
+    // Check if MetaMask is installed
+    dispatch(checkMetaMaskInstalled());
+    
     // Check if the user has previously connected their wallet
     const checkConnection = async () => {
       const ethereum = (window as any).ethereum;
@@ -32,9 +36,62 @@ export function useBlockchain() {
     };
 
     checkConnection();
+
+    // Listen for account changes
+    const ethereum = (window as any).ethereum;
+    if (ethereum) {
+      ethereum.on('accountsChanged', (accounts: string[]) => {
+        if (accounts.length === 0) {
+          // User disconnected their wallet
+          dispatch(updateBalances({ tokenBalance: 0, ethBalance: 0 }));
+          setIsUsingBlockchain(false);
+        } else {
+          // Account changed, refresh balances
+          handleConnectWallet();
+        }
+      });
+
+      ethereum.on('chainChanged', () => {
+        // Chain changed, refresh connection
+        window.location.reload();
+      });
+    }
+
+    return () => {
+      // Clean up listeners
+      if (ethereum) {
+        ethereum.removeListener('accountsChanged', () => {});
+        ethereum.removeListener('chainChanged', () => {});
+      }
+    };
   }, []);
 
+  // Show blockchain errors as toasts
+  useEffect(() => {
+    if (blockchainError) {
+      toast({
+        title: "Blockchain Warning",
+        description: blockchainError,
+        variant: "destructive",
+      });
+      
+      // Clear the error after showing it
+      setTimeout(() => {
+        dispatch(clearBlockchainError());
+      }, 5000);
+    }
+  }, [blockchainError]);
+
   const handleConnectWallet = async () => {
+    if (!isMetaMaskInstalled) {
+      toast({
+        title: "MetaMask not installed",
+        description: "Please install MetaMask to use blockchain features",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     const resultAction = await dispatch(connectWallet());
     
     if (connectWallet.fulfilled.match(resultAction)) {
@@ -52,20 +109,48 @@ export function useBlockchain() {
     }
   };
 
+  const checkWalletRequirements = () => {
+    if (!isMetaMaskInstalled) {
+      toast({
+        title: "MetaMask not installed",
+        description: "Please install MetaMask to use blockchain features",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (!isConnected) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to use blockchain features",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (ethBalance < 0.001) {
+      toast({
+        title: "Insufficient ETH balance",
+        description: "You need some ETH in your wallet to pay for gas fees",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  };
+
   const handleCreateListing = async (
     energyAmount: number,
     price: number,
     source: string,
     location: string
   ) => {
-    // First check if we're in blockchain mode and the wallet is connected
-    if (isUsingBlockchain && !isConnected) {
-      toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet to create a blockchain listing",
-        variant: "destructive",
-      });
-      return { success: false, error: "Wallet not connected" };
+    // First check if we're in blockchain mode and wallet requirements are met
+    if (isUsingBlockchain) {
+      if (!checkWalletRequirements()) {
+        return { success: false, error: "Wallet requirements not met" };
+      }
     }
 
     const resultAction = await dispatch(
@@ -97,14 +182,11 @@ export function useBlockchain() {
   };
 
   const handlePurchaseEnergy = async (listingId: string) => {
-    // First check if we're in blockchain mode and the wallet is connected
-    if (isUsingBlockchain && !isConnected) {
-      toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet to make blockchain purchases",
-        variant: "destructive",
-      });
-      return { success: false, error: "Wallet not connected" };
+    // First check if we're in blockchain mode and wallet requirements are met
+    if (isUsingBlockchain) {
+      if (!checkWalletRequirements()) {
+        return { success: false, error: "Wallet requirements not met" };
+      }
     }
     
     // Get listing details first
@@ -117,6 +199,16 @@ export function useBlockchain() {
         variant: "destructive",
       });
       return { success: false, error: "Listing not found" };
+    }
+    
+    // Check if user has enough tokens
+    if (isUsingBlockchain && tokenBalance < listing.price) {
+      toast({
+        title: "Insufficient token balance",
+        description: `You need ${listing.price} tokens to make this purchase, but you only have ${tokenBalance}.`,
+        variant: "destructive",
+      });
+      return { success: false, error: "Insufficient token balance" };
     }
     
     const resultAction = await dispatch(
@@ -162,8 +254,8 @@ export function useBlockchain() {
   const toggleBlockchainMode = async () => {
     // If we're turning on blockchain mode, make sure wallet is connected first
     if (!isUsingBlockchain) {
-      const ethereum = (window as any).ethereum;
-      if (!ethereum) {
+      // Check for MetaMask installation first
+      if (!isMetaMaskInstalled) {
         toast({
           title: "MetaMask not installed",
           description: "Please install MetaMask to use blockchain features",
@@ -199,7 +291,8 @@ export function useBlockchain() {
     tokenBalance,
     ethBalance,
     isUsingBlockchain,
-    error,
+    isMetaMaskInstalled,
+    error: blockchainError,
     connectWallet: handleConnectWallet,
     createListing: handleCreateListing,
     purchaseEnergy: handlePurchaseEnergy,
