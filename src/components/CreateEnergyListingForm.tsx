@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,7 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
   const [location, setLocation] = useState("");
   
   // Use Redux state and actions
-  const { isConnected } = useAppSelector(state => state.blockchain);
+  const { isConnected, isMetaMaskInstalled, ethBalance } = useAppSelector(state => state.blockchain);
   const { isLoading } = useAppSelector(state => state.listings);
   const { createListing } = useBlockchain();
 
@@ -51,16 +51,23 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
       }
 
       // Check if MetaMask is installed when using blockchain
-      if (useBlockchain) {
-        const ethereum = (window as any).ethereum;
-        if (!ethereum) {
-          toast({
-            title: "MetaMask not installed",
-            description: "Please install MetaMask to use blockchain features",
-            variant: "destructive",
-          });
-          return;
-        }
+      if (useBlockchain && !isMetaMaskInstalled) {
+        toast({
+          title: "MetaMask not installed",
+          description: "Please install MetaMask to use blockchain features",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Check if user has enough ETH for gas
+      if (useBlockchain && isConnected && ethBalance < 0.001) {
+        toast({
+          title: "Insufficient ETH balance",
+          description: "You need some ETH in your wallet to pay for gas fees",
+          variant: "destructive",
+        });
+        return;
       }
       
       // Now proceed with creating the listing
