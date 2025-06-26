@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -23,7 +24,7 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
   // Use Redux state and blockchain hook
   const { isConnected, isMetaMaskInstalled, ethBalance } = useAppSelector(state => state.blockchain);
   const { isLoading: listingsLoading } = useAppSelector(state => state.listings);
-  const blockchainHook = useBlockchain();
+  const blockchain = useBlockchain();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +71,7 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
       }
       
       // Now proceed with creating the listing
-      const result = await blockchainHook.createListing(
+      const result = await blockchain.createListing(
         parseFloat(amount),
         parseFloat(price),
         source,
