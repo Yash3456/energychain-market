@@ -23,7 +23,7 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
   
   // Use Redux state and actions
   const { isConnected, isMetaMaskInstalled, ethBalance } = useAppSelector(state => state.blockchain);
-  const { isLoading } = useAppSelector(state => state.listings);
+  const { isLoading: listingsLoading } = useAppSelector(state => state.listings);
   const { createListing } = useBlockchain();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -184,9 +184,9 @@ const CreateEnergyListingForm = ({ useBlockchain = false }: CreateEnergyListingF
           <Button 
             type="submit" 
             className="w-full" 
-            disabled={isLoading || (useBlockchain && !isConnected)}
+            disabled={listingsLoading || (useBlockchain && !isConnected)}
           >
-            {isLoading ? (
+            {listingsLoading ? (
               <>
                 <span className="mr-2">Processing</span>
                 <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
