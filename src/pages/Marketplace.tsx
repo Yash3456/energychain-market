@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import EnergyListingCard from "@/components/EnergyListingCard";
 import CreateEnergyListingForm from "@/components/CreateEnergyListingForm";
-import RealTimeTrading from "@/components/RealTimeTrading";
 import {
   Dialog,
   DialogContent,
@@ -185,12 +184,6 @@ const Marketplace = () => {
       </div>
 
       <Tabs defaultValue="browse">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="browse">Browse Market</TabsTrigger>
-          <TabsTrigger value="trade">Real-Time Trading</TabsTrigger>
-          <TabsTrigger value="sell">List Energy</TabsTrigger>
-        </TabsList>
-
         <TabsContent value="browse" className="space-y-6">
           <div className="flex flex-col md:flex-row gap-4">
             <form onSubmit={handleSearch} className="flex-1 flex gap-2">
@@ -261,10 +254,6 @@ const Marketplace = () => {
               </p>
             </div>
           )}
-        </TabsContent>
-
-        <TabsContent value="trade">
-          <RealTimeTrading />
         </TabsContent>
 
         <TabsContent value="sell">
